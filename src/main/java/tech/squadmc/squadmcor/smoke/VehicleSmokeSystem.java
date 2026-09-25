@@ -32,8 +32,11 @@ public final class VehicleSmokeSystem {
     public static final float GENERATOR_RADIUS = 4.2F;
     public static final float GENERATOR_HEIGHT = 2.4F;
     public static final int GENERATOR_GROW_TICKS = 60;
-    public static final int GENERATOR_HOLD_TICKS = 100;  // короткий hold — keepAlive продлевает
+    public static final int GENERATOR_HOLD_TICKS = 100;
     public static final int GENERATOR_FADE_TICKS = 200;
+
+    /** Раз в сколько тиков дымогенератор оставляет позади новый клубок (шлейф). */
+    public static final int TRAIL_INTERVAL_TICKS = 8; // ~0.4 сек при 20 tps
 
     private VehicleSmokeSystem() {}
 
@@ -73,25 +76,24 @@ public final class VehicleSmokeSystem {
     }
 
     /**
-     * Дымогенератор: вызывать каждый тик, пока включён. Создаёт облако один
-     * раз (attachToCarrier), дальше только keepAlive() — при выключении
-     * генератора запас в 40 тиков истекает и облако гаснет само.
+     * Дымогенератор: вызывать каждый тик, пока включён. В отличие от старой
+     * версии, теперь оставляет позади СВОБОДНЫЕ (не привязанные к технике)
+     * клубки дыма каждые TRAIL_INTERVAL_TICKS тиков — получается настоящий
+     * шлейф, а не одна точка, которая просто едет вместе с машиной.
+     * Каждый клубок живёт своей жизнью (grow/hold/fade) и угасает сам.
      */
     public static void tickGenerator(SquadBaseVehicleEntity vehicle) {
         Level level = vehicle.level();
         if (level.isClientSide) return;
 
-        VehicleSmokeCloudEntity cloud = vehicle.getExhaustSmoke();
-        if (cloud == null || cloud.isRemoved()) {
-            cloud = new VehicleSmokeCloudEntity(ModEntities.VEHICLE_SMOKE_CLOUD.get(), level);
-            Vec3 offset = vehicle.getSmokeGeneratorOffset();
-            cloud.setPos(localToWorld(vehicle, offset));
-            cloud.configure(GENERATOR_RADIUS, GENERATOR_HEIGHT,
-                    GENERATOR_GROW_TICKS, GENERATOR_HOLD_TICKS, GENERATOR_FADE_TICKS);
-            cloud.attachToCarrier(vehicle, offset);
-            level.addFreshEntity(cloud);
-            vehicle.setExhaustSmoke(cloud);
-        }
-        cloud.keepAlive();
+        if (vehicle.tickCount % TRAIL_INTERVAL_TICKS != 0) return;
+
+        Vec3 offset = vehicle.getSmokeGeneratorOffset();
+        VehicleSmokeCloudEntity puff =
+                new VehicleSmokeCloudEntity(ModEntities.VEHICLE_SMOKE_CLOUD.get(), level);
+        puff.setPos(localToWorld(vehicle, offset));
+        puff.configure(GENERATOR_RADIUS, GENERATOR_HEIGHT,
+                GENERATOR_GROW_TICKS, GENERATOR_HOLD_TICKS, GENERATOR_FADE_TICKS);
+        level.addFreshEntity(puff);
     }
 }

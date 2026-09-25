@@ -81,17 +81,24 @@ public class T64Entity extends SquadBaseVehicleEntity {
         // Дымогенератор ТДА (новая объёмная система) — включается/выключается тем же
         // триггером, что раньше запускал старые частицы: анимация выстрела ТДА-оружия
         // (weapon slot 0), т.е. штатным интерфейсом стрельбы техники, без отдельных клавиш.
+        //
+        // ВАЖНО: обновление и фактический запуск дымогенератора теперь происходят
+        // ЗДЕСЬ, в одном месте и на одном (текущем) тике, через updateSmokeGenerator().
+        // getShootAnimationTimer(0,0) сам по себе мигает 0/>0 между выстрелами при
+        // авто-огне — сглаживание (grace-период) делает updateSmokeGenerator().
         if (!this.level().isClientSide) {
             int timer = this.getShootAnimationTimer(0, 0);
+            boolean pulse = timer > 0;
+            boolean wasOn = this.isSmokeGeneratorOn();
+
+            this.updateSmokeGenerator(pulse);
+
             // ВРЕМЕННЫЙ ДИАГНОСТИЧЕСКИЙ ЛОГ — удалить после проверки.
-            boolean firing = timer > 0;
-            if (firing != this.isSmokeGeneratorOn()) {
+            if (pulse || wasOn != this.isSmokeGeneratorOn()) {
                 System.out.println("[T64 SMOKE DEBUG] tick=" + this.tickCount
                         + " shootAnimationTimer(0,0)=" + timer
-                        + " -> setSmokeGeneratorOn(" + firing + ")");
-            }
-            if (firing != this.isSmokeGeneratorOn()) {
-                this.setSmokeGeneratorOn(firing);
+                        + " pulse=" + pulse
+                        + " generatorOn=" + this.isSmokeGeneratorOn());
             }
         }
 

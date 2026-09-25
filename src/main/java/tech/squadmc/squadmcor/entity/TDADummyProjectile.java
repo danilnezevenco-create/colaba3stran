@@ -1,13 +1,16 @@
 package tech.squadmc.squadmcor.entity;
 
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.projectile.ThrowableItemProjectile;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import tech.squadmc.squadmcor.init.ModEntities;
 import tech.squadmc.squadmcor.smoke.VehicleSmokeCloudEntity;
@@ -15,6 +18,9 @@ import tech.squadmc.squadmcor.smoke.VehicleSmokeSystem;
 
 public class TDADummyProjectile extends ThrowableItemProjectile {
     private boolean isAdditional = false;
+
+    /** На какой высоте над землёй (в блоках) шашка должна раскрыться. */
+    private static final double DETONATE_HEIGHT_ABOVE_GROUND = 2.0;
 
     public TDADummyProjectile(EntityType<? extends TDADummyProjectile> type, Level level) {
         super(type, level);
@@ -155,8 +161,49 @@ public class TDADummyProjectile extends ThrowableItemProjectile {
 
         super.tick();
 
-        if (this.tickCount > 30) {
-            this.explode();
+        if (!this.level().isClientSide) {
+            // Раскрываем не по столкновению с блоком, а заранее — на заданной высоте над землёй,
+            // но только пока шашка ещё падает (не в момент броска вверх).
+            if (this.tickCount > 1 && this.getDeltaMovement().y <= 0.0
+                    && this.heightAboveGround() <= DETONATE_HEIGHT_ABOVE_GROUND) {
+                this.explode();
+            } else if (this.tickCount > 30) {
+                this.explode();
+            }
+        } else {
+            this.spawnFlightSparks();
+        }
+    }
+
+    /**
+     * Рейкаст вниз от текущей позиции до ближайшего твёрдого блока.
+     * Возвращает Double.MAX_VALUE, если под шашкой нет земли в радиусе 64 блоков
+     * (например, шашка летит над пропастью) — чтобы не взрывать её раньше времени.
+     */
+    private double heightAboveGround() {
+        Vec3 from = this.position();
+        Vec3 to = from.subtract(0.0, 64.0, 0.0);
+        BlockHitResult hit = this.level().clip(new ClipContext(
+                from, to,
+                ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE,
+                this));
+        if (hit.getType() == HitResult.Type.BLOCK) {
+            return from.y - hit.getLocation().y;
+        }
+        return Double.MAX_VALUE;
+    }
+
+    /** Искры во время полёта шашки. Только клиент. */
+    private void spawnFlightSparks() {
+        Vec3 delta = this.getDeltaMovement();
+        for (int i = 0; i < 2; i++) {
+            double ox = (this.random.nextDouble() - 0.5) * 0.15;
+            double oy = (this.random.nextDouble() - 0.5) * 0.15;
+            double oz = (this.random.nextDouble() - 0.5) * 0.15;
+            this.level().addParticle(ParticleTypes.ELECTRIC_SPARK,
+                    this.getX() + ox, this.getY() + oy, this.getZ() + oz,
+                    -delta.x * 0.3, 0.02, -delta.z * 0.3);
         }
     }
 
