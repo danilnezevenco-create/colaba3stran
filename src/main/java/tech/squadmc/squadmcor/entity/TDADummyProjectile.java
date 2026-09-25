@@ -9,6 +9,9 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
+import tech.squadmc.squadmcor.init.ModEntities;
+import tech.squadmc.squadmcor.smoke.VehicleSmokeCloudEntity;
+import tech.squadmc.squadmcor.smoke.VehicleSmokeSystem;
 
 public class TDADummyProjectile extends ThrowableItemProjectile {
     private boolean isAdditional = false;
@@ -189,7 +192,6 @@ public class TDADummyProjectile extends ThrowableItemProjectile {
                         isDriver = true;
                     }
                 }
-                // === Р”РћР‘РђР’Р›Р•РќРћ Р”Р›РЇ M1A2 Р РЎРџР РЈРў ===
                 else if (vehicle instanceof m1a2Entity m1a2) {
                     if (m1a2.getSeatIndex(owner) == 0) {
                         isDriver = true;
@@ -244,8 +246,6 @@ public class TDADummyProjectile extends ThrowableItemProjectile {
                         isDriver = true;
                     }
                 }
-
-                // ==================================
             }
 
             if (!isDriver) {
@@ -257,40 +257,26 @@ public class TDADummyProjectile extends ThrowableItemProjectile {
                         2.0F,
                         1.0F
                 );
-                this.level().broadcastEntityEvent(this, (byte) 60);
+                this.spawnSmokeCloud();
             }
 
             this.discard();
         }
     }
 
-    @Override
-    public void handleEntityEvent(byte id) {
-        if (id == 60) {
-            this.spawnSmokeCloud();
-        } else {
-            super.handleEntityEvent(id);
-        }
-    }
-
+    /** Новая объёмная система дыма (VehicleSmokeCloudEntity) вместо старых ванильных частиц. Только сервер. */
     private void spawnSmokeCloud() {
-        Vec3 pos = this.position();
-        for (int i = 0; i < 15; i++) {
-            double rx = (this.random.nextDouble() - 0.5) * 1.5;
-            double ry = this.random.nextDouble() * 1.2;
-            double rz = (this.random.nextDouble() - 0.5) * 1.5;
+        if (this.level().isClientSide) return;
 
-            double vx = (this.random.nextDouble() - 0.5) * 0.15;
-            double vy = 0.02 + this.random.nextDouble() * 0.05;
-            double vz = (this.random.nextDouble() - 0.5) * 0.15;
-
-            net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT, () -> () ->
-                    tech.squadmc.squadmcor.client.ClientAccess.spawnSmoke(
-                            this.level(),
-                            pos.x + rx, pos.y + ry, pos.z + rz,
-                            vx, vy, vz
-                    )
-            );
-        }
+        VehicleSmokeCloudEntity cloud =
+                new VehicleSmokeCloudEntity(ModEntities.VEHICLE_SMOKE_CLOUD.get(), this.level());
+        cloud.setPos(this.position());
+        cloud.configure(
+                VehicleSmokeSystem.LAUNCHER_RADIUS,
+                VehicleSmokeSystem.LAUNCHER_HEIGHT,
+                VehicleSmokeSystem.LAUNCHER_GROW_TICKS,
+                VehicleSmokeSystem.LAUNCHER_HOLD_TICKS,
+                VehicleSmokeSystem.LAUNCHER_FADE_TICKS);
+        this.level().addFreshEntity(cloud);
     }
 }

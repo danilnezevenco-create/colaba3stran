@@ -82,7 +82,14 @@ public class T64Entity extends SquadBaseVehicleEntity {
         // триггером, что раньше запускал старые частицы: анимация выстрела ТДА-оружия
         // (weapon slot 0), т.е. штатным интерфейсом стрельбы техники, без отдельных клавиш.
         if (!this.level().isClientSide) {
-            boolean firing = this.getShootAnimationTimer(0, 0) > 0;
+            int timer = this.getShootAnimationTimer(0, 0);
+            // ВРЕМЕННЫЙ ДИАГНОСТИЧЕСКИЙ ЛОГ — удалить после проверки.
+            boolean firing = timer > 0;
+            if (firing != this.isSmokeGeneratorOn()) {
+                System.out.println("[T64 SMOKE DEBUG] tick=" + this.tickCount
+                        + " shootAnimationTimer(0,0)=" + timer
+                        + " -> setSmokeGeneratorOn(" + firing + ")");
+            }
             if (firing != this.isSmokeGeneratorOn()) {
                 this.setSmokeGeneratorOn(firing);
             }
