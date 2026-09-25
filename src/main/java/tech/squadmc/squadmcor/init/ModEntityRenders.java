@@ -22,6 +22,10 @@ public class ModEntityRenders {
         event.registerEntityRenderer(ModEntities.TDA_DUMMY.get(), NoopRenderer::new);
         event.registerEntityRenderer(ModEntities.BMP2.get(), bmp2Renderer::new);
         event.registerEntityRenderer(ModEntities.KONKURS_DUMMY.get(), NoopRenderer::new);
+
+        // Облако объёмного дыма рисуется stage-проходом (VehicleSmokeStageRenderer) —
+        // штатный рендерер сущности не нужен, ровно как у TDA/KONKURS/TOW.
+        event.registerEntityRenderer(ModEntities.VEHICLE_SMOKE_CLOUD.get(), NoopRenderer::new);
         event.registerEntityRenderer(ModEntities.LAV25.get(), lav25Renderer::new);
         event.registerEntityRenderer(ModEntities.BRADLEY.get(), bradleyRenderer::new);
         event.registerEntityRenderer(ModEntities.TOW_DUMMY.get(), NoopRenderer::new);

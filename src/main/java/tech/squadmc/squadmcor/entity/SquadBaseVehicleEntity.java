@@ -9,11 +9,21 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MoverType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
+import tech.squadmc.squadmcor.smoke.VehicleSmokeCloudEntity;
+import tech.squadmc.squadmcor.smoke.VehicleSmokeSystem;
 
 public abstract class SquadBaseVehicleEntity extends GeoVehicleEntity {
 
     public static final EntityDataAccessor<Boolean> ENGINE_STARTED =
             SynchedEntityData.defineId(SquadBaseVehicleEntity.class, EntityDataSerializers.BOOLEAN);
+    public static final EntityDataAccessor<Boolean> SMOKE_GENERATOR =
+            SynchedEntityData.defineId(SquadBaseVehicleEntity.class, EntityDataSerializers.BOOLEAN);
+
+    // --- Дымовая система: ДГ + дымогенератор (порт системы aasgranate) ---
+    private int smokeVolleyCooldown = 0;
+    private int smokeCharges = VehicleSmokeSystem.DEFAULT_CHARGES;
+    @javax.annotation.Nullable
+    private VehicleSmokeCloudEntity exhaustSmoke; // сервер; null, пока генератор не включали
 
     public SquadBaseVehicleEntity(EntityType<? extends SquadBaseVehicleEntity> type, Level world) {
         super(type, world);
@@ -23,6 +33,7 @@ public abstract class SquadBaseVehicleEntity extends GeoVehicleEntity {
     protected void defineSynchedData() {
         super.defineSynchedData();
         this.entityData.define(ENGINE_STARTED, false);
+        this.entityData.define(SMOKE_GENERATOR, false);
     }
 
     public boolean isEngineStarted() {
@@ -33,10 +44,31 @@ public abstract class SquadBaseVehicleEntity extends GeoVehicleEntity {
         this.entityData.set(ENGINE_STARTED, started);
     }
 
+    // --- Дымовая система: accessors ---
+    public boolean isSmokeGeneratorOn() { return this.entityData.get(SMOKE_GENERATOR); }
+    public void setSmokeGeneratorOn(boolean on) { this.entityData.set(SMOKE_GENERATOR, on); }
+    public int getSmokeVolleyCooldown() { return this.smokeVolleyCooldown; }
+    public void setSmokeVolleyCooldown(int v) { this.smokeVolleyCooldown = v; }
+    public int getSmokeCharges() { return this.smokeCharges; }
+    public void setSmokeCharges(int v) { this.smokeCharges = v; }
+    @javax.annotation.Nullable public VehicleSmokeCloudEntity getExhaustSmoke() { return this.exhaustSmoke; }
+    public void setExhaustSmoke(@javax.annotation.Nullable VehicleSmokeCloudEntity e) { this.exhaustSmoke = e; }
+
+    /** Есть ли у машины дымовые гранатомёты. */
+    public boolean hasSmokeLauncher() { return false; }
+    /** Локальные offset'ы точек крепления ДГ (учитывается yaw корпуса). */
+    public Vec3[] getSmokeLauncherPoints() { return new Vec3[0]; }
+    /** Есть ли дымогенератор (постоянный дым из выхлопа, пока включён). */
+    public boolean hasSmokeGenerator() { return false; }
+    /** Локальный offset точки выпуска дыма генератора. */
+    public Vec3 getSmokeGeneratorOffset() { return new Vec3(0.0, 1.0, -2.0); }
+
     @Override
     public void addAdditionalSaveData(CompoundTag compound) {
         super.addAdditionalSaveData(compound);
         compound.putBoolean("EngineStarted", this.isEngineStarted());
+        compound.putInt("SmokeCharges", this.smokeCharges);
+        compound.putBoolean("SmokeGenerator", this.isSmokeGeneratorOn());
     }
 
     @Override
@@ -45,6 +77,9 @@ public abstract class SquadBaseVehicleEntity extends GeoVehicleEntity {
         if (compound.contains("EngineStarted")) {
             this.setEngineStarted(compound.getBoolean("EngineStarted"));
         }
+        if (compound.contains("SmokeCharges")) this.smokeCharges = compound.getInt("SmokeCharges");
+        if (compound.contains("SmokeGenerator")) this.setSmokeGeneratorOn(compound.getBoolean("SmokeGenerator"));
+        // Облако генератора не сохраняем: после загрузки создастся заново при первом keepAlive-тике.
     }
 
     // =========================================================================
@@ -96,6 +131,11 @@ public abstract class SquadBaseVehicleEntity extends GeoVehicleEntity {
 
     @Override
     public void tick() {
+        if (!this.level().isClientSide) {
+            if (this.smokeVolleyCooldown > 0) this.smokeVolleyCooldown--;
+            if (hasSmokeGenerator() && isSmokeGeneratorOn()) VehicleSmokeSystem.tickGenerator(this);
+        }
+
         double prevX = this.getX();
         double prevZ = this.getZ();
 

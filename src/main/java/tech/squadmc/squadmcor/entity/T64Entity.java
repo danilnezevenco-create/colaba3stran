@@ -78,39 +78,13 @@ public class T64Entity extends SquadBaseVehicleEntity {
 
         super.tick();
 
-        // Р“РµРЅРµСЂР°С†РёСЏ РґС‹РјР° РўР”Рђ РёР· РІС‹С…Р»РѕРїРЅРѕРіРѕ РєРѕР»Р»РµРєС‚РѕСЂР°
-        if (this.getShootAnimationTimer(0, 0) > 0) {
-            Vec3 look = this.getLookAngle();
-            Vec3 rear = this.position().subtract(look.scale(3.6));
-
-            if (this.level().isClientSide) {
-                Vec3 right = new Vec3(-look.z, 0.0, look.x).normalize();
-                Vec3 exhaustPos = rear.subtract(right.scale(1.25)).add(0.0, 0.75, 0.0);
-
-                for (int i = 0; i < 3; i++) {
-                    double sideOffset = (this.random.nextDouble() - 0.5) * 0.3;
-                    double upOffset = this.random.nextDouble() * 0.3;
-                    double backOffset = (this.random.nextDouble() - 0.5) * 0.3;
-
-                    Vec3 spawnPos = exhaustPos
-                            .add(right.scale(sideOffset))
-                            .add(0.0, upOffset, 0.0)
-                            .add(look.scale(backOffset));
-
-                    double sideSpeed = (this.random.nextDouble() - 0.5) * 0.05;
-                    double upSpeed = 0.02 + this.random.nextDouble() * 0.04;
-                    Vec3 velocity = look.scale(-0.25D)
-                            .add(right.scale(sideSpeed))
-                            .add(0.0, upSpeed, 0.0);
-
-                    net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT, () -> () ->
-                            tech.squadmc.squadmcor.client.ClientAccess.spawnSmoke(
-                                    this.level(),
-                                    spawnPos.x, spawnPos.y, spawnPos.z,
-                                    velocity.x, velocity.y, velocity.z
-                            )
-                    );
-                }
+        // Дымогенератор ТДА (новая объёмная система) — включается/выключается тем же
+        // триггером, что раньше запускал старые частицы: анимация выстрела ТДА-оружия
+        // (weapon slot 0), т.е. штатным интерфейсом стрельбы техники, без отдельных клавиш.
+        if (!this.level().isClientSide) {
+            boolean firing = this.getShootAnimationTimer(0, 0) > 0;
+            if (firing != this.isSmokeGeneratorOn()) {
+                this.setSmokeGeneratorOn(firing);
             }
         }
 
@@ -186,4 +160,29 @@ public class T64Entity extends SquadBaseVehicleEntity {
             return this.getYRot();
         }
     }
+
+    // =========================================================================
+    // ДЫМОВАЯ СИСТЕМА (порт системы aasgranate, автономно)
+    // =========================================================================
+
+    @Override
+    public boolean hasSmokeLauncher() { return true; }
+
+    /** 4 ДГ по бортам башни — тот же веер, что уже используется для TDA в spawnAdditionalGrenades. */
+    @Override
+    public Vec3[] getSmokeLauncherPoints() {
+        return new Vec3[] {
+                new Vec3(-1.60, 2.10,  0.35),
+                new Vec3( 1.60, 2.10,  0.35),
+                new Vec3(-1.60, 2.10, -0.75),
+                new Vec3( 1.60, 2.10, -0.75)
+        };
+    }
+
+    @Override
+    public boolean hasSmokeGenerator() { return true; }
+
+    /** Выхлопной коллектор — та же точка, что уже используется для ТДА-дыма (rear − right*1.25 + 0.75). */
+    @Override
+    public Vec3 getSmokeGeneratorOffset() { return new Vec3(1.25, 0.75, -3.6); }
 }

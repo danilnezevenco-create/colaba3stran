@@ -9,6 +9,7 @@ import net.minecraftforge.registries.RegistryObject;
 import tech.squadmc.squadmcor.entity.*;
 import tech.squadmc.squadmcor.entity.empl.*;
 import tech.squadmc.squadmcor.entity.projectile.MalyutkaEntity;
+import tech.squadmc.squadmcor.smoke.VehicleSmokeCloudEntity;
 import tech.squadmc.squadmcor.squadmc;
 
 public class ModEntities {
@@ -27,6 +28,15 @@ public class ModEntities {
                     .sized(0.25F, 0.25F)
                     .clientTrackingRange(360)
                     .build("tda_dummy"));
+
+    // --- Объёмный дым техники (перенесено из aasgranate, полностью автономно) ---
+    public static final RegistryObject<EntityType<VehicleSmokeCloudEntity>> VEHICLE_SMOKE_CLOUD =
+            ENTITY_TYPES.register("vehicle_smoke_cloud", () -> EntityType.Builder.of(VehicleSmokeCloudEntity::new, MobCategory.MISC)
+                    .sized(0.5F, 0.5F)
+                    .clientTrackingRange(360)
+                    .updateInterval(10)
+                    .fireImmune()
+                    .build("vehicle_smoke_cloud"));
 
     public static final RegistryObject<EntityType<btr80Entity>> BTR80 =
             ENTITY_TYPES.register("btr80", () -> EntityType.Builder.of(btr80Entity::new, MobCategory.MISC)
