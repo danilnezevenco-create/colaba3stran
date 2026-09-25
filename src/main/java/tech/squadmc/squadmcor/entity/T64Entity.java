@@ -89,16 +89,24 @@ public class T64Entity extends SquadBaseVehicleEntity {
         if (!this.level().isClientSide) {
             int timer = this.getShootAnimationTimer(0, 0);
             boolean pulse = timer > 0;
-            boolean wasOn = this.isSmokeGeneratorOn();
 
             this.updateSmokeGenerator(pulse);
 
-            // ВРЕМЕННЫЙ ДИАГНОСТИЧЕСКИЙ ЛОГ — удалить после проверки.
-            if (pulse || wasOn != this.isSmokeGeneratorOn()) {
-                System.out.println("[T64 SMOKE DEBUG] tick=" + this.tickCount
-                        + " shootAnimationTimer(0,0)=" + timer
-                        + " pulse=" + pulse
-                        + " generatorOn=" + this.isSmokeGeneratorOn());
+            // ВРЕМЕННАЯ ИГРОВАЯ ДИАГНОСТИКА — вывод в actionbar водителю (полоска
+            // над хотбаром), без серверных логов. Удалить после проверки.
+            for (net.minecraft.world.entity.Entity passenger : this.getPassengers()) {
+                if (this.getSeatIndex(passenger) == 0
+                        && passenger instanceof net.minecraft.server.level.ServerPlayer sp) {
+                    int ammo = this.getAmmoCount(0);
+                    sp.displayClientMessage(
+                            net.minecraft.network.chat.Component.literal(
+                                    "[ДГ] timer=" + timer
+                                            + " pulse=" + pulse
+                                            + " ON=" + this.isSmokeGeneratorOn()
+                                            + " ammo(clay)=" + ammo),
+                            true);
+                    break;
+                }
             }
         }
 
