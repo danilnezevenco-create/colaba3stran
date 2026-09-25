@@ -1,0 +1,42 @@
+
+modLoader = "javafml"
+
+loaderVersion = "[47,)"
+
+license = "GPL-3.0"
+
+[[mods]]
+
+modId = "squadmc"
+
+version = "2.1.3-SNAPSHOT"
+
+displayName = "SquadMcVehicles"
+
+authors = "Ivlla"
+
+
+
+description = '''This a mod for SquadMC Server'''
+
+[[dependencies.squadmc]] #optional
+modId = "forge"
+mandatory = true
+versionRange = "[47,)" #mandatory
+ordering = "NONE"
+side = "BOTH"# Here's another dependency
+
+[[dependencies.squadmc]]
+modId = "minecraft"
+mandatory = true
+versionRange = "[1.20.1,1.21)"
+ordering = "NONE"
+side = "BOTH"
+
+
+[[dependencies.squadmc]]
+modId = "superbwarfare"
+mandatory = true
+versionRange = "[0.8.8,)"
+ordering = "NONE"
+side = "BOTH"

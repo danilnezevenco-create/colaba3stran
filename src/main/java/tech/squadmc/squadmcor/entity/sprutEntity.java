@@ -1,0 +1,125 @@
+package tech.squadmc.squadmcor.entity;
+
+import com.atsuishio.superbwarfare.entity.vehicle.base.GeoVehicleEntity;
+import com.atsuishio.superbwarfare.entity.vehicle.damage.DamageModifier;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
+import software.bernie.geckolib.core.animation.AnimatableManager;
+import software.bernie.geckolib.core.animation.AnimationController;
+import software.bernie.geckolib.core.animation.AnimationState;
+import software.bernie.geckolib.core.animation.RawAnimation;
+import software.bernie.geckolib.core.object.PlayState;
+import tech.squadmc.squadmcor.init.ModEntities;
+
+public class sprutEntity extends SquadBaseVehicleEntity {
+
+    public sprutEntity(EntityType<? extends sprutEntity> type, Level world) {
+        super(type, world);
+    }
+
+    @Override
+    public DamageModifier getDamageModifier() {
+        return super.getDamageModifier().custom((source, damage) -> this.getSourceAngle(source, 0.7F) * damage);
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+
+        if (this.isInWater()) {
+            this.setDeltaMovement(this.getDeltaMovement().add(0.0, 0.04, 0.0));
+        }
+
+        if (this.getShootAnimationTimer(0, 0) > 0) {
+            Vec3 look = this.getLookAngle();
+            Vec3 rear = this.position().subtract(look.scale(3.0));
+
+            if (this.level().isClientSide) {
+                Vec3 right = new Vec3(-look.z, 0.0, look.x).normalize();
+
+                for (int i = 0; i < 2; i++) {
+                    double sideOffset = (this.random.nextDouble() - 0.5) * 4.0;
+                    double upOffset = this.random.nextDouble() * 1.2;
+                    double backOffset = (this.random.nextDouble() - 0.5) * 0.8;
+
+                    Vec3 spawnPos = rear
+                            .add(right.scale(sideOffset))
+                            .add(0.0, upOffset + 0.5, 0.0)
+                            .add(look.scale(backOffset));
+
+                    double sideSpeed = (this.random.nextDouble() - 0.5) * 0.1;
+                    double upSpeed = 0.01 + this.random.nextDouble() * 0.015;
+
+                    Vec3 velocity = right.scale(sideSpeed)
+                            .add(0.0, upSpeed, 0.0)
+                            .add(look.scale((this.random.nextDouble() - 0.5) * 0.02));
+
+                    net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT, () -> () ->
+                            tech.squadmc.squadmcor.client.ClientAccess.spawnSmoke(
+                                    this.level(),
+                                    spawnPos.x, spawnPos.y, spawnPos.z,
+                                    velocity.x, velocity.y, velocity.z
+                            )
+                    );
+                }
+            }
+        }
+
+        if (this.level().isClientSide) {
+            net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT, () -> () ->
+                    tech.squadmc.squadmcor.client.ClientAccess.handleSprutClientTick(this)
+            );
+        }
+    }
+
+    public void spawnAdditionalGrenades(TDADummyProjectile original) {
+        float baseAngle = this.getYRot() - this.getTurretAngle();
+        float pitch = -10.0F;
+
+        float f = -pitch * ((float)Math.PI / 180F);
+        float f1 = (float)Math.sin(f);
+        float f2 = (float)Math.cos(f);
+
+        float[] angles = new float[]{-30.0F, -10.0F, 10.0F, 30.0F};
+        float speed = 0.55F;
+        float inaccuracy = 0.5F;
+
+        float yaw0 = baseAngle + angles[0];
+        float f3_0 = -yaw0 * ((float)Math.PI / 180F);
+        double vx0 = Math.sin(f3_0) * f2;
+        double vy0 = f1;
+        double vz0 = Math.cos(f3_0) * f2;
+        original.shoot(vx0, vy0, vz0, speed, inaccuracy);
+
+        for (int i = 1; i < angles.length; i++) {
+            float yaw = baseAngle + angles[i];
+            float f3 = -yaw * ((float)Math.PI / 180F);
+            double vx = Math.sin(f3) * f2;
+            double vy = f1;
+            double vz = Math.cos(f3) * f2;
+
+            TDADummyProjectile grenade = new TDADummyProjectile(ModEntities.TDA_DUMMY.get(), this.level());
+            grenade.setAdditional(true);
+            grenade.setPos(original.getX(), original.getY(), original.getZ());
+            grenade.setOwner(original.getOwner());
+            grenade.shoot(vx, vy, vz, speed, inaccuracy);
+            this.level().addFreshEntity(grenade);
+        }
+    }
+
+    private float getTurretAngle() {
+        try {
+            java.lang.reflect.Field field = com.atsuishio.superbwarfare.entity.vehicle.base.VehicleEntity.class.getDeclaredField("turretYRot");
+            field.setAccessible(true);
+            return field.getFloat(this);
+        } catch (Exception e) {
+            return this.getYRot();
+        }
+    }
+
+    @Override
+    public boolean hasDecoy() {
+        return false;
+    }
+}

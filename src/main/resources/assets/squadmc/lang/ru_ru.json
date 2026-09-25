@@ -1,0 +1,8 @@
+{
+  "item.squadmc.spike": "SPIKE",
+  "entity.squadmc.spike_missile": "Ракета SPIKE",
+  "death.attack.spike": "%1$s поражён ракетой SPIKE",
+  "death.attack.spike.player": "%1$s поражён ракетой SPIKE игрока %2$s",
+  "message.squadmc.engine_started": "§a[+] Двигатель запущен",
+  "message.squadmc.engine_off": "§c[-] Техника заглушена"
+}
