@@ -29,8 +29,10 @@ public final class VehicleSmokeSystem {
     public static final int LAUNCHER_FADE_TICKS = 160;
 
     // --- дымогенератор (выхлоп) ---
-    public static final float GENERATOR_RADIUS = 4.2F;
-    public static final float GENERATOR_HEIGHT = 2.4F;
+    // Уменьшено в 1.5 раза относительно исходных 4.2F / 2.4F по просьбе:
+    // визуально клубки меньше, форма (соотношение радиус/высота) та же.
+    public static final float GENERATOR_RADIUS = 2.8F;
+    public static final float GENERATOR_HEIGHT = 1.6F;
     public static final int GENERATOR_GROW_TICKS = 60;
     public static final int GENERATOR_HOLD_TICKS = 100;
     public static final int GENERATOR_FADE_TICKS = 200;
@@ -89,11 +91,24 @@ public final class VehicleSmokeSystem {
         if (vehicle.tickCount % TRAIL_INTERVAL_TICKS != 0) return;
 
         Vec3 offset = vehicle.getSmokeGeneratorOffset();
+        // усредняем текущий и предыдущий yRot, чтобы точка спавна лучше
+        // совпадала с тем, что в этот момент реально видно на клиенте
+        // (клиент интерполирует поворот, и "чистый" текущий yRot всегда
+        // немного забегает вперёд относительно отрисованной модели)
+        float blendedYRot = (vehicle.yRotO + vehicle.getYRot()) / 2.0F;
+        Vec3 puffPos = localToWorldWithYaw(vehicle, offset, blendedYRot);
+
         VehicleSmokeCloudEntity puff =
                 new VehicleSmokeCloudEntity(ModEntities.VEHICLE_SMOKE_CLOUD.get(), level);
-        puff.setPos(localToWorld(vehicle, offset));
+        puff.setPos(puffPos);
         puff.configure(GENERATOR_RADIUS, GENERATOR_HEIGHT,
                 GENERATOR_GROW_TICKS, GENERATOR_HOLD_TICKS, GENERATOR_FADE_TICKS);
         level.addFreshEntity(puff);
+    }
+    public static Vec3 localToWorldWithYaw(Entity vehicle, Vec3 local, float yRotDeg) {
+        float yawRad = -yRotDeg * ((float) Math.PI / 180F);
+        double ox = local.x * Math.cos(yawRad) - local.z * Math.sin(yawRad);
+        double oz = local.x * Math.sin(yawRad) + local.z * Math.cos(yawRad);
+        return new Vec3(vehicle.getX() + ox, vehicle.getY() + local.y, vehicle.getZ() + oz);
     }
 }

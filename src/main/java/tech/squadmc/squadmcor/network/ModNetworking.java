@@ -18,5 +18,6 @@ public class ModNetworking {
 
     public static void register() {
         CHANNEL.registerMessage(packetId++, ToggleEnginePacket.class, ToggleEnginePacket::toBytes, ToggleEnginePacket::new, ToggleEnginePacket::handle);
+        CHANNEL.registerMessage(packetId++, SmokeGeneratorPulsePacket.class, SmokeGeneratorPulsePacket::toBytes, SmokeGeneratorPulsePacket::new, SmokeGeneratorPulsePacket::handle);
     }
 }

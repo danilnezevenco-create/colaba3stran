@@ -91,6 +91,20 @@ public abstract class SquadBaseVehicleEntity extends GeoVehicleEntity {
         }
     }
 
+    /**
+     * Серверный "пульс" от клиента (см. SmokeGeneratorPulsePacket): клиент
+     * видит getShootAnimationTimer(seat0, weapon0) > 0 (сервер этого не
+     * видит — это клиентская анимация выстрела) и раз в тик шлёт этот
+     * пульс, чтобы продлить grace-период. Логика идентична
+     * updateSmokeGenerator(true), но не трогает VehicleSmokeSystem —
+     * фактический тик генератора (и его "on"-статус) по-прежнему делает
+     * updateSmokeGenerator(false), вызываемый из tick() каждый серверный
+     * тик, который просто ЧИТАЕТ уже продлённый smokeGraceTicks.
+     */
+    public void pulseSmokeGenerator() {
+        this.smokeGraceTicks = SMOKE_GRACE_TICKS;
+    }
+
     /** Есть ли у машины дымовые гранатомёты. */
     public boolean hasSmokeLauncher() { return false; }
     /** Локальные offset'ы точек крепления ДГ (учитывается yaw корпуса). */
@@ -120,7 +134,7 @@ public abstract class SquadBaseVehicleEntity extends GeoVehicleEntity {
     }
 
     // =========================================================================
-    // 1. РџРћР’РћР РћРў Р‘РђРЁРќР РЎ РљР›РђР’РРђРўРЈР Р« (A / D)
+    // 1. ПОВОРОТ БАШНИ С КЛАВИАТУРЫ (A / D)
     // =========================================================================
     public boolean hasKeyboardTurretTraverse() {
         return false;
@@ -131,13 +145,13 @@ public abstract class SquadBaseVehicleEntity extends GeoVehicleEntity {
     }
 
     // =========================================================================
-    // 2. Р”Р«РњРћР’Р«Р• Р“Р РђРќРђРўР« (TDA)
+    // 2. ДЫМОВЫЕ ГРАНАТЫ (TDA)
     // =========================================================================
     public void spawnAdditionalGrenades(TDADummyProjectile original) {
     }
 
     // =========================================================================
-    // 3. Р‘Р›РћРљРР РћР’РљРђ Р”Р’РР–Р•РќРРЇ РџР Р Р’Р«РљР›Р®Р§Р•РќРќРћРњ Р”Р’РР“РђРўР•Р›Р•
+    // 3. БЛОКИРОВКА ДВИЖЕНИЯ ПРИ ВЫКЛЮЧЕННОМ ДВИГАТЕЛЕ
     // =========================================================================
     @Override
     public void move(MoverType type, Vec3 movement) {

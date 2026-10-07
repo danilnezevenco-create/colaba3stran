@@ -76,40 +76,10 @@ public class Bmp1Entity extends SquadBaseVehicleEntity {
 
         super.tick();
 
-        // 2. Exhaust smoke generator (Front-right deck placement on BMP-1)
-        if (this.getShootAnimationTimer(0, 0) > 0) {
-            Vec3 look = this.getLookAngle();
-            Vec3 forward = this.position().add(look.scale(1.1));
-
-            if (this.level().isClientSide) {
-                Vec3 right = new Vec3(-look.z, 0.0, look.x).normalize();
-                Vec3 exhaustPos = forward.add(right.scale(0.95)).add(0.0, 0.70, 0.0);
-
-                for (int i = 0; i < 3; i++) {
-                    double sideOffset = (this.random.nextDouble() - 0.5) * 0.2;
-                    double upOffset = this.random.nextDouble() * 0.2;
-                    double backOffset = (this.random.nextDouble() - 0.5) * 0.2;
-
-                    Vec3 spawnPos = exhaustPos
-                            .add(right.scale(sideOffset))
-                            .add(0.0, upOffset, 0.0)
-                            .add(look.scale(backOffset));
-
-                    double sideSpeed = (this.random.nextDouble() - 0.5) * 0.04;
-                    double upSpeed = 0.02 + this.random.nextDouble() * 0.03;
-                    Vec3 velocity = look.scale(-0.20D)
-                            .add(right.scale(sideSpeed))
-                            .add(0.0, upSpeed, 0.0);
-
-                    net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT, () -> () ->
-                            tech.squadmc.squadmcor.client.ClientAccess.spawnSmoke(
-                                    this.level(),
-                                    spawnPos.x, spawnPos.y, spawnPos.z,
-                                    velocity.x, velocity.y, velocity.z
-                            )
-                    );
-                }
-            }
+        // Пульс дымогенератора — сам тик генератора делаем ниже, ПОСЛЕ обновления setYRot
+        if (this.level().isClientSide && this.getShootAnimationTimer(0, 0) > 0) {
+            tech.squadmc.squadmcor.network.ModNetworking.CHANNEL.sendToServer(
+                    new tech.squadmc.squadmcor.network.SmokeGeneratorPulsePacket());
         }
 
         // 3. Track physics and wheel rotation
@@ -139,7 +109,18 @@ public class Bmp1Entity extends SquadBaseVehicleEntity {
 
         this.prevWheelRotation = this.wheelRotation;
         this.wheelRotation += (float) (speed * 22.0D);
+
+        // ← генератор тикаем ЗДЕСЬ, после setYRot выше — иначе снова смещение на поворотах
+        if (!this.level().isClientSide) {
+            this.updateSmokeGenerator(false);
+        }
     }
+
+    @Override
+    public boolean hasSmokeGenerator() { return true; }
+
+    @Override
+    public Vec3 getSmokeGeneratorOffset() { return new Vec3(0.0, 0.70, 0.0); }
 
     public void spawnAdditionalGrenades(TDADummyProjectile original) {
         float baseAngle = this.getYRot() - this.getTurretAngle();

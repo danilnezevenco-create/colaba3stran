@@ -78,38 +78,6 @@ public class T64Entity extends SquadBaseVehicleEntity {
 
         super.tick();
 
-        // Дымогенератор ТДА (новая объёмная система) — включается/выключается тем же
-        // триггером, что раньше запускал старые частицы: анимация выстрела ТДА-оружия
-        // (weapon slot 0), т.е. штатным интерфейсом стрельбы техники, без отдельных клавиш.
-        //
-        // ВАЖНО: обновление и фактический запуск дымогенератора теперь происходят
-        // ЗДЕСЬ, в одном месте и на одном (текущем) тике, через updateSmokeGenerator().
-        // getShootAnimationTimer(0,0) сам по себе мигает 0/>0 между выстрелами при
-        // авто-огне — сглаживание (grace-период) делает updateSmokeGenerator().
-        if (!this.level().isClientSide) {
-            int timer = this.getShootAnimationTimer(0, 0);
-            boolean pulse = timer > 0;
-
-            this.updateSmokeGenerator(pulse);
-
-            // ВРЕМЕННАЯ ИГРОВАЯ ДИАГНОСТИКА — вывод в actionbar водителю (полоска
-            // над хотбаром), без серверных логов. Удалить после проверки.
-            for (net.minecraft.world.entity.Entity passenger : this.getPassengers()) {
-                if (this.getSeatIndex(passenger) == 0
-                        && passenger instanceof net.minecraft.server.level.ServerPlayer sp) {
-                    int ammo = this.getAmmoCount(0);
-                    sp.displayClientMessage(
-                            net.minecraft.network.chat.Component.literal(
-                                    "[ДГ] timer=" + timer
-                                            + " pulse=" + pulse
-                                            + " ON=" + this.isSmokeGeneratorOn()
-                                            + " ammo(clay)=" + ammo),
-                            true);
-                    break;
-                }
-            }
-        }
-
         this.prevSteeringAngle = this.getSteeringAngle();
         float currentAngle = this.getSteeringAngle();
         double speed = this.getDeltaMovement().horizontalDistance();
@@ -136,6 +104,27 @@ public class T64Entity extends SquadBaseVehicleEntity {
 
         this.prevWheelRotation = this.wheelRotation;
         this.wheelRotation += (float) (speed * 20.0D);
+
+        // Дымогенератор ТДА (новая объёмная система) — включается/выключается тем же
+        // триггером, что раньше запускал старые частицы: анимация выстрела ТДА-оружия
+        // (weapon slot 0), т.е. штатным интерфейсом стрельбы техники, без отдельных клавиш.
+        //
+        // ВАЖНО: getShootAnimationTimer(...) достоверен только на КЛИЕНТЕ (это
+        // клиентская анимация выстрела; на сервере он всегда читается как 0 — так
+        // же, как и во всех остальных машинах мода, где этот таймер используется
+        // только внутри isClientSide-веток). Поэтому "пульс" (что водитель сейчас
+        // жмёт огонь по SmokeLauncher) приходит от клиента по сети —
+        // SmokeGeneratorPulsePacket → SquadBaseVehicleEntity.pulseSmokeGenerator().
+        // Здесь, на сервере, мы только "дожёвываем" (decay) уже продлённый
+        // grace-период и, пока он не истёк, тикаем сам дымогенератор.
+        //
+        // ВАЖНО (порядок вызова): этот блок должен идти ПОСЛЕ обновления setYRot()
+        // выше — иначе updateSmokeGenerator() берёт устаревший (прошлого тика) угол
+        // поворота, и при повороте техники дым визуально "уезжает" влево/вправо
+        // от центра корпуса вместо того, чтобы оставаться строго по центру кормы.
+        if (!this.level().isClientSide) {
+            this.updateSmokeGenerator(false);
+        }
     }
 
     public void spawnAdditionalGrenades(TDADummyProjectile original) {
@@ -204,7 +193,12 @@ public class T64Entity extends SquadBaseVehicleEntity {
     @Override
     public boolean hasSmokeGenerator() { return true; }
 
-    /** Выхлопной коллектор — та же точка, что уже используется для ТДА-дыма (rear − right*1.25 + 0.75). */
+    /**
+     * Выхлопной коллектор. Было (1.25, 0.75, -3.6) — дым шёл слева от
+     * машины. Локальный +X в этой системе координат = левый борт (см.
+     * VehicleSmokeSystem.localToWorld), поэтому чтобы сдвинуть точку
+     * выпуска на 1.5 блока вправо, X уменьшен на 1.5: 1.25 − 1.5 = −0.25.
+     */
     @Override
-    public Vec3 getSmokeGeneratorOffset() { return new Vec3(1.25, 0.75, -3.6); }
+    public Vec3 getSmokeGeneratorOffset() { return new Vec3(0.0, 0.75, 0.0); }
 }

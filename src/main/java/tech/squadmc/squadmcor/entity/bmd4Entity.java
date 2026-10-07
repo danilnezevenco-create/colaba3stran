@@ -24,44 +24,17 @@ public class bmd4Entity extends SquadBaseVehicleEntity {
     public DamageModifier getDamageModifier() {
         return super.getDamageModifier().custom((source, damage) -> this.getSourceAngle(source, 0.4F) * damage);
     }
-
     @Override
     public void tick() {
         super.tick();
 
-        if (this.getShootAnimationTimer(0, 0) > 0) {
-            Vec3 look = this.getLookAngle();
-            Vec3 rear = this.position().subtract(look.scale(3.5));
-
-            if (this.level().isClientSide) {
-                Vec3 right = new Vec3(-look.z, 0.0, look.x).normalize();
-
-                for (int i = 0; i < 3; i++) {
-                    double sideOffset = (this.random.nextDouble() - 0.5) * 5.0;
-                    double upOffset = this.random.nextDouble() * 1.5;
-                    double backOffset = (this.random.nextDouble() - 0.5) * 1.0;
-
-                    Vec3 spawnPos = rear
-                            .add(right.scale(sideOffset))
-                            .add(0.0, upOffset + 0.6, 0.0)
-                            .add(look.scale(backOffset));
-
-                    double sideSpeed = (this.random.nextDouble() - 0.5) * 0.12;
-                    double upSpeed = 0.01 + this.random.nextDouble() * 0.02;
-
-                    Vec3 velocity = right.scale(sideSpeed)
-                            .add(0.0, upSpeed, 0.0)
-                            .add(look.scale((this.random.nextDouble() - 0.5) * 0.02));
-
-                    net.minecraftforge.fml.DistExecutor.unsafeRunWhenOn(net.minecraftforge.api.distmarker.Dist.CLIENT, () -> () ->
-                            tech.squadmc.squadmcor.client.ClientAccess.spawnSmoke(
-                                    this.level(),
-                                    spawnPos.x, spawnPos.y, spawnPos.z,
-                                    velocity.x, velocity.y, velocity.z
-                            )
-                    );
-                }
-            }
+        // Дымогенератор выхлопа (T64-style, VehicleSmokeSystem) — Seat 0, Weapon 0
+        if (this.level().isClientSide && this.getShootAnimationTimer(0, 0) > 0) {
+            tech.squadmc.squadmcor.network.ModNetworking.CHANNEL.sendToServer(
+                    new tech.squadmc.squadmcor.network.SmokeGeneratorPulsePacket());
+        }
+        if (!this.level().isClientSide) {
+            this.updateSmokeGenerator(false);
         }
 
         if (this.level().isClientSide) {
@@ -70,6 +43,12 @@ public class bmd4Entity extends SquadBaseVehicleEntity {
             );
         }
     }
+
+    @Override
+    public boolean hasSmokeGenerator() { return true; }
+
+    @Override
+    public Vec3 getSmokeGeneratorOffset() { return new Vec3(0.0, 0.6, 0.0); }
 
     @Override
     public void handleEntityEvent(byte id) {

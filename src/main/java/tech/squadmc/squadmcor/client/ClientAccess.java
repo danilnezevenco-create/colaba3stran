@@ -107,6 +107,15 @@ public class ClientAccess {
                     mc.player.setXRot(mc.player.getXRot() + (entity.getRandom().nextFloat() - 0.5F) * shakeIntensity);
                     mc.player.setYRot(mc.player.getYRot() + (entity.getRandom().nextFloat() - 0.5F) * shakeIntensity);
                 }
+            } else if (playerSeatIndex == 0) { // Водитель — SmokeLauncher (ДГ)
+                // getShootAnimationTimer(0,0) достоверен только тут, на клиенте.
+                // Сервер сам его не видит, поэтому пока водитель жмёт огонь,
+                // раз в тик шлём "пульс", который продлевает grace-период ДГ
+                // на сервере (см. SquadBaseVehicleEntity.pulseSmokeGenerator()).
+                if (entity.getShootAnimationTimer(0, 0) > 0) {
+                    tech.squadmc.squadmcor.network.ModNetworking.CHANNEL.sendToServer(
+                            new tech.squadmc.squadmcor.network.SmokeGeneratorPulsePacket());
+                }
             }
         }
     }
